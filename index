@@ -1,1 +1,515 @@
-# XTZ
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Просмотр данных производства</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; background: #e6f2ff; padding: 10px; line-height: 1.4; }
+    .header-container { text-align: center; margin-bottom: 20px; padding: 15px; background: #001355; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    .header-container img { max-width: 183px; width: 100%; height: auto; margin: 10px 0; }
+    h2 { text-align: center; font-size: 20px; margin: 25px 0 20px 0; color:white; font-weight: 700; }
+    #viewForm { background: white; padding: 15px; border-radius: 12px; margin: 0 auto; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    .form-group { margin-bottom: 12px; }
+    label { font-weight: 600; display: block; margin-bottom: 6px; font-size: 14px; color: #2c3e50; text-transform: uppercase; letter-spacing: 0.5px; }
+    select, input, textarea { width: 100%; padding: 16px; border: 2px solid #ddd; border-radius: 10px; box-sizing: border-box; font-size: 17px; background: #fafafa; transition: all 0.3s ease; }
+    select:focus, input:focus, textarea:focus { outline: none; border-color: #4285f4; background: white; box-shadow: 0 0 0 4px rgba(66, 133, 244, 0.15); }
+    input[readonly], textarea[readonly] { background: #f5f5f5; color: #666; border-color: #ddd; cursor: not-allowed; }
+    input[readonly]:focus, textarea[readonly]:focus { border-color: #ddd; background: #f5f5f5; box-shadow: none; }
+    .section-title { font-size: 18px; font-weight: bold; margin: 20px 0 10px 0; color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 5px; }
+    #message { margin-top: 15px; padding: 14px; border-radius: 8px; font-size: 16px; text-align: center; }
+    .success { background: #d4edda; color: #155724; border: 2px solid #c3e6cb; }
+    .error { background: #f8d7da; color: #721c24; border: 2px solid #f5c6cb; }
+    .info { background: #d1ecf1; color: #0c5460; border: 2px solid #bee5eb; }
+    .loading { background: #fff3cd; color: #856404; border: 2px solid #ffeaa7; }
+    .validation-error { border-color: #dc3545 !important; background-color: #fff5f5 !important; }
+    .validation-success { border-color: #28a745 !important; }
+    .error-message { color: #dc3545; font-size: 14px; margin-top: 5px; display: none; }
+    select { -webkit-appearance: none; -moz-appearance: none; appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23555'%3e%3cpath d='M7 10l5 5 5-5z'/%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 18px center; background-size: 20px; padding-right: 50px; }
+    button { width: 100%; padding: 16px; background: #4285f4; color: white; border: none; border-radius: 10px; font-size: 17px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; margin-top: 10px; }
+    button:hover { background: #3367d6; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(66, 133, 244, 0.3); }
+    button:active { transform: translateY(0); }
+    button:disabled { background: #ccc; cursor: not-allowed; transform: none; box-shadow: none; }
+    @media (max-width: 768px) { body { padding: 8px; font-size: 18px; } #viewForm { padding: 12px; border-radius: 10px; } .header-container { margin-bottom: 15px; padding: 12px; } .header-container img { max-width: 183px; } h2 { font-size: 18px; margin-bottom: 15px; } label { font-size: 14px; margin-bottom: 5px; } select, input, textarea { padding: 18px; font-size: 18px; min-height: 58px; border-width: 2px; } textarea { min-height: 100px; font-size: 17px; } }
+    @media (max-width: 480px) { .header-container img { max-width: 183px; } select, input, textarea { padding: 16px; font-size: 16px; } }
+    .checkbox-group { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .checkbox-group input[type="checkbox"] { width: 20px; height: 20px; margin: 0; }
+    .checkbox-group label { margin: 0; font-weight: normal; text-transform: none; }
+  </style>
+</head>
+<body>
+  <div class="header-container">
+    <img src="http://irtz.ru/PC/pc.png" alt="Логотип">
+    <h2>Форма оператора УВПО</h2>
+    <p style="color: white; margin: 5px 0 0 0; font-size: 16px;">Хабаровский трубный завод</p>
+  </div>
+
+  <form id="viewForm" autocomplete="off">
+    <div class="form-group">
+      <label for="dateSelect">Выберите дату</label>
+      <input type="date" id="dateSelect" required>
+    </div>
+
+    <div class="form-group" id="employeeGroup" style="display: none;">
+      <label for="employeeSelect">ФИО машиниста</label>
+      <select id="employeeSelect" required>
+        <option value="">-- Выберите сотрудника --</option>
+      </select>
+    </div>
+
+    <div id="employeeData" style="display: none;">
+      <div class="section-title">Данные из системы</div>
+      <div class="form-group"><label>Смена</label><input type="text" id="smenaView" readonly></div>
+      <div class="form-group"><label>День/Ночь</label><input type="text" id="denbView" readonly></div>
+      <div class="form-group"><label>Вид производства</label><input type="text" id="proizView" readonly></div>
+      <div class="form-group"><label>Марка перерабатываемого материала</label><input type="text" id="markaView" readonly></div>
+      <div class="form-group"><label>Норма выработки</label><input type="text" id="normaView" readonly></div>
+      <div class="form-group"><label>Рабочий центр</label><input type="text" id="centerView" readonly></div>
+      <div class="form-group"><label>Комментарий для нач. смены</label><textarea id="commentView" readonly></textarea></div>
+    </div>
+
+    <div id="employeeInput" style="display: none;">
+      <div class="section-title">Данные от сотрудника</div>
+      
+      <div class="form-group">
+        <label for="vesGP">Вес ГП, кг</label>
+        <input type="number" id="vesGP" step="0.01" placeholder="Введите вес готовой продукции" required>
+        <div class="error-message" id="vesGPError">Поле обязательно для заполнения</div>
+      </div>
+      
+      <div class="form-group">
+        <label for="downtime">Время простоя оборудования, мин</label>
+        <input type="number" id="downtime" placeholder="Введите время простоя" required>
+        <div class="error-message" id="downtimeError">Поле обязательно для заполнения</div>
+      </div>
+      
+      <div class="checkbox-group">
+        <input type="checkbox" id="noDowntime">
+        <label for="noDowntime">Нет простоя</label>
+      </div>
+
+      <div class="form-group">
+        <label for="reasonSelect">Причина простоя</label>
+        <select id="reasonSelect" required>
+          <option value="">-- Выберите причину --</option>
+        </select>
+        <div class="error-message" id="reasonError">Поле обязательно для заполнения</div>
+      </div>
+      
+      <button type="button" id="submitBtn">Отправить данные</button>
+    </div>
+
+    <div id="message"></div>
+  </form>
+
+  <script>
+    class DataViewer {
+      constructor() {
+        this.n8nWebhookUrl = 'https://tunnel.itrz.ru/webhook/get-data-by-date_xtz';
+        this.saveWebhookUrl = 'https://tunnel.itrz.ru/webhook/save-production-data_xtz';
+        this.downtimeUrl = 'https://tunnel.itrz.ru/webhook/get-downtime-reasons_xtz';
+        this.allData = [];
+        this.employees = [];
+        this.currentEmployee = null;
+        this.downtimeReasons = [];
+        this.init();
+      }
+
+      init() {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('dateSelect').value = today;
+        document.getElementById('dateSelect').addEventListener('change', e => this.loadDataByDate(e.target.value));
+        document.getElementById('employeeSelect').addEventListener('change', e => this.displayEmployeeData(e.target.value));
+        
+        // validation handlers
+        this.addValidationHandlers();
+
+        // no downtime checkbox handler
+        document.getElementById('noDowntime').addEventListener('change', (e) => this.toggleNoDowntime(e.target.checked));
+
+        this.loadDowntimeReasons();
+        this.loadDataByDate(today);
+
+        // submit handler
+        document.getElementById('submitBtn').addEventListener('click', () => this.handleSubmit());
+      }
+
+      toggleNoDowntime(checked) {
+        const downtimeInput = document.getElementById('downtime');
+        const reasonSelect = document.getElementById('reasonSelect');
+        
+        if (checked) {
+          downtimeInput.value = '';
+          reasonSelect.value = 'Нет простоя';
+          downtimeInput.disabled = true;
+          reasonSelect.disabled = true;
+          this.clearFieldError('downtime');
+          this.clearFieldError('reasonSelect');
+        } else {
+          downtimeInput.disabled = false;
+          reasonSelect.disabled = false;
+          reasonSelect.value = '';
+        }
+      }
+
+      addValidationHandlers() {
+        const requiredFields = ['vesGP', 'downtime', 'reasonSelect'];
+        requiredFields.forEach(fieldId => {
+          const field = document.getElementById(fieldId);
+          if (!field) return;
+          field.addEventListener('blur', () => this.validateField(fieldId));
+          field.addEventListener('input', () => this.clearFieldError(fieldId));
+        });
+      }
+
+      validateField(fieldId) {
+        const noDowntimeChecked = document.getElementById('noDowntime').checked;
+        // Если чекбокс "Нет простоя" отмечен, поля простоя не проверяем
+        if (noDowntimeChecked && (fieldId === 'downtime' || fieldId === 'reasonSelect')) {
+          return true;
+        }
+
+        const field = document.getElementById(fieldId);
+        const errorElement = document.getElementById(fieldId + 'Error');
+        if (!field) return true;
+        if (String(field.value).trim() === '') {
+          field.classList.add('validation-error');
+          if (errorElement) errorElement.style.display = 'block';
+          return false;
+        } else {
+          field.classList.remove('validation-error');
+          field.classList.add('validation-success');
+          if (errorElement) errorElement.style.display = 'none';
+          return true;
+        }
+      }
+
+      clearFieldError(fieldId) {
+        const field = document.getElementById(fieldId);
+        const errorElement = document.getElementById(fieldId + 'Error');
+        if (!field) return;
+        field.classList.remove('validation-error');
+        if (errorElement) errorElement.style.display = 'none';
+      }
+
+      validateAllFields() {
+        const noDowntimeChecked = document.getElementById('noDowntime').checked;
+        let fields = ['vesGP'];
+        
+        if (!noDowntimeChecked) {
+          fields = fields.concat(['downtime', 'reasonSelect']);
+        }
+        
+        let isValid = true;
+        fields.forEach(f => { if (!this.validateField(f)) isValid = false; });
+        return isValid;
+      }
+
+      showMessage(text, type) {
+        const msg = document.getElementById('message');
+        msg.textContent = text;
+        msg.className = type;
+        if (type !== 'loading') setTimeout(() => { msg.textContent=''; msg.className=''; }, 5000);
+      }
+
+      showLoading(text = 'Загрузка...') { this.showMessage(text, 'loading'); }
+      hideLoading() { const msg = document.getElementById('message'); if (msg.classList.contains('loading')) { msg.textContent=''; msg.className=''; } }
+
+      async loadDataByDate(date) {
+        if (!date) return;
+        this.showLoading('Загрузка данных...');
+        this.hideEmployeeData();
+        this.hideEmployeeInput();
+        this.hideEmployeeSelect();
+
+        try {
+          const response = await fetch(`${this.n8nWebhookUrl}?date=${encodeURIComponent(date)}`);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const result = await response.json();
+          console.log('Ответ сервера:', result);
+
+          if (result.success && Array.isArray(result.allData) && result.allData.length > 0) {
+            // присваиваем данные, гарантируем, что все элементы имеют index
+            this.allData = result.allData.map((row, idx) => {
+              if (row.index === undefined || row.index === null) row.index = idx;
+              return row;
+            });
+            this.employees = Array.isArray(result.employees) ? result.employees : this.allData.map(r => ({ label: r['ФИО машиниста'] || r['ФИО'] || '', index: r.index, id: r.id || r['id'] || null }));
+            this.populateEmployeeSelect();
+            this.showMessage(`Найдено ${this.employees.length} сотрудников`, 'success');
+          } else {
+            this.allData = [];
+            this.employees = [];
+            this.showMessage('Нет данных за выбранную дату', 'info');
+          }
+        } catch (e) {
+          console.error('Ошибка загрузки данных:', e);
+          this.showMessage('Ошибка загрузки данных', 'error');
+        } finally {
+          this.hideLoading();
+        }
+      }
+
+      populateEmployeeSelect() {
+        const select = document.getElementById('employeeSelect');
+        select.innerHTML = '<option value="">-- Выберите сотрудника --</option>';
+        
+        if (this.employees.length === 0) {
+            document.getElementById('employeeGroup').style.display = 'none';
+            return;
+        }
+        
+        // Создаем объект для подсчета вхождений каждого ФИО
+        const fioCount = {};
+        const fioEntries = {};
+        
+        // Сначала извлекаем чистые ФИО
+        this.employees.forEach(emp => {
+            if (emp.label) {
+                // Извлекаем чистое ФИО (убираем возможные дополнения)
+                const cleanFio = emp.label.replace(/\s*\(Задание\s*\d+\)\s*$/, '').trim();
+                
+                if (cleanFio) {
+                    fioCount[cleanFio] = (fioCount[cleanFio] || 0) + 1;
+                    if (!fioEntries[cleanFio]) fioEntries[cleanFio] = [];
+                    fioEntries[cleanFio].push(emp.index);
+                }
+            }
+        });
+        
+        // Теперь создаем опции с правильными номерами заданий
+        const usedFios = new Set();
+        
+        this.employees.forEach(emp => {
+            if (emp.label) {
+                // Извлекаем чистое ФИО
+                const cleanFio = emp.label.replace(/\s*\(Задание\s*\d+\)\s*$/, '').trim();
+                
+                if (cleanFio && !usedFios.has(`${cleanFio}_${emp.index}`)) {
+                    const option = document.createElement('option');
+                    option.value = emp.index;
+                    
+                    let label = cleanFio;
+                    if (fioCount[cleanFio] > 1) {
+                        // Находим номер этого задания для данного ФИО
+                        const entries = fioEntries[cleanFio];
+                        const taskNumber = entries.indexOf(emp.index) + 1;
+                        label += ` (Задание ${taskNumber})`;
+                    }
+                    
+                    option.textContent = label;
+                    select.appendChild(option);
+                    usedFios.add(`${cleanFio}_${emp.index}`);
+                }
+            }
+        });
+        
+        document.getElementById('employeeGroup').style.display = 'block';
+      }
+
+      displayEmployeeData(index) {
+        if (index === "" || !this.allData.length) {
+          this.hideEmployeeInput();
+          return;
+        }
+        const emp = this.allData.find(e => String(e.index) === String(index));
+        if (!emp) {
+          this.showMessage('Данные сотрудника не найдены', 'error');
+          return;
+        }
+
+        this.currentEmployee = emp;
+
+        document.getElementById('smenaView').value = emp['Смена'] || '';
+        document.getElementById('denbView').value = emp['ДеньНочь'] || emp['День/Ночь'] || '';
+        document.getElementById('proizView').value = emp['Вид производства'] || '';
+        document.getElementById('markaView').value = emp['Марка перераб.матер.'] || emp['Марка перепаб.матер.'] || '';
+        document.getElementById('normaView').value = emp['Норма выработки'] || '';
+        document.getElementById('centerView').value = emp['Рабочий центр'] || '';
+        document.getElementById('commentView').value = emp['Комментарий для нач.смены'] || '';
+
+        // подставляем пользовательские значения (если есть)
+        document.getElementById('vesGP').value = emp['Вес ГП'] || emp['Вес ГП.'] || '';
+        document.getElementById('downtime').value = emp['Время простоя оборудования'] || emp['Время простоя'] || '';
+
+        this.setCurrentDowntimeReason(emp['Причины простоя'] || '');
+
+        this.showEmployeeData();
+        this.showEmployeeInput();
+        this.clearAllValidationErrors();
+        
+        // Сброс чекбокса и состояния полей при загрузке нового сотрудника
+        const noDowntimeCheck = document.getElementById('noDowntime');
+        noDowntimeCheck.checked = false;
+        document.getElementById('downtime').disabled = false;
+        document.getElementById('reasonSelect').disabled = false;
+        
+        const employeeName = emp['ФИО машиниста'] || emp['ФИО'] || 'Неизвестный сотрудник';
+        this.showMessage(`Данные загружены для ${employeeName}`, 'success');
+      }
+
+      clearAllValidationErrors() {
+        ['vesGP','downtime','reasonSelect'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) {
+            el.classList.remove('validation-error');
+            el.classList.remove('validation-success');
+          }
+          const err = document.getElementById(id + 'Error');
+          if (err) err.style.display = 'none';
+        });
+      }
+
+      showEmployeeSelect() { document.getElementById('employeeGroup').style.display = 'block'; }
+      hideEmployeeSelect() { document.getElementById('employeeGroup').style.display = 'none'; }
+      showEmployeeData() { document.getElementById('employeeData').style.display = 'block'; }
+      hideEmployeeData() {
+        document.getElementById('employeeData').style.display = 'none';
+        ['smenaView','denbView','proizView','markaView','normaView','centerView','commentView'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.value = '';
+        });
+      }
+      showEmployeeInput() { document.getElementById('employeeInput').style.display = 'block'; }
+      hideEmployeeInput() { document.getElementById('employeeInput').style.display = 'none'; }
+
+      async loadDowntimeReasons() {
+        try {
+          const response = await fetch(this.downtimeUrl);
+          if (!response.ok) throw new Error('HTTP ' + response.status);
+          const result = await response.json();
+          if (result.success && Array.isArray(result.reasons)) {
+            this.downtimeReasons = result.reasons;
+          } else if (Array.isArray(result.reasons)) {
+            this.downtimeReasons = result.reasons;
+          } else {
+            this.downtimeReasons = [];
+          }
+        } catch (e) {
+          console.warn('Не удалось загрузить причины простоя, используем дефолтные', e);
+          this.downtimeReasons = [
+            'Техническое обслуживание',
+            'Отсутствие сырья',
+            'Поломка оборудования',
+            'Переналадка линии',
+            'Отсутствие персонала',
+            'Плановый ремонт'
+          ];
+        } finally {
+          this.populateDowntimeSelect();
+        }
+      }
+
+      populateDowntimeSelect() {
+        const select = document.getElementById('reasonSelect');
+        select.innerHTML = '<option value="">-- Выберите причину --</option>';
+        // Добавляем "Нет простоя" в список причин
+        const option = document.createElement('option');
+        option.value = 'Нет простоя';
+        option.textContent = 'Нет простоя';
+        select.appendChild(option);
+        
+        this.downtimeReasons.forEach(reason => {
+          const option = document.createElement('option');
+          option.value = reason;
+          option.textContent = reason;
+          select.appendChild(option);
+        });
+      }
+
+      setCurrentDowntimeReason(currentReason = '') {
+        const select = document.getElementById('reasonSelect');
+        if (!select) return;
+        if (currentReason && (this.downtimeReasons.includes(currentReason) || currentReason === 'Нет простоя')) {
+          select.value = currentReason;
+          // Если причина "Нет простоя", отмечаем чекбокс и блокируем поля
+          if (currentReason === 'Нет простоя') {
+            document.getElementById('noDowntime').checked = true;
+            document.getElementById('downtime').disabled = true;
+            document.getElementById('reasonSelect').disabled = true;
+          }
+        } else {
+          select.value = '';
+        }
+      }
+
+      async handleSubmit() {
+        // validation
+        if (!this.validateAllFields()) {
+          this.showMessage('Заполните все обязательные поля', 'error');
+          return;
+        }
+
+        if (!this.currentEmployee) {
+          this.showMessage('Сначала выберите сотрудника', 'error');
+          return;
+        }
+
+        const noDowntimeChecked = document.getElementById('noDowntime').checked;
+        const vesGP = document.getElementById('vesGP').value;
+        const downtime = noDowntimeChecked ? '0' : document.getElementById('downtime').value;
+        const reason = noDowntimeChecked ? 'Нет простоя' : document.getElementById('reasonSelect').value;
+        const recordId = this.currentEmployee.id || this.currentEmployee['id'] || null;
+        const date = document.getElementById('dateSelect').value;
+
+        if (!recordId) {
+          this.showMessage('Ошибка: не найден идентификатор записи (id)', 'error');
+          return;
+        }
+
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Отправка...';
+
+        try {
+          const response = await fetch(this.saveWebhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              recordId,
+              date,
+              vesGP: vesGP || null,
+              downtime: downtime || null,
+              reason: reason || null
+            })
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+
+          const result = await response.json().catch(() => ({}));
+
+          if (result && result.success === false) {
+            this.showMessage('Сервер отказал в сохранении данных', 'error');
+          } else {
+            // считаем успешным при HTTP 200 в большинстве случаев
+            this.showMessage('Данные успешно отправлены!', 'success');
+
+            // обновим локальную запись в allData, чтобы сразу отражалось в интерфейсе
+            const idx = this.allData.findIndex(r => (r.id && String(r.id) === String(recordId)) || (r.index !== undefined && r.index === this.currentEmployee.index));
+            if (idx !== -1) {
+              this.allData[idx]['Вес ГП'] = vesGP;
+              this.allData[idx]['Время простоя оборудования'] = downtime;
+              this.allData[idx]['Причины простоя'] = reason;
+            }
+          }
+        } catch (e) {
+          console.error('Ошибка отправки данных:', e);
+          this.showMessage('Данные не удалось отправить', 'error');
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Отправить данные';
+        }
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const viewer = new DataViewer();
+      // expose viewer for debugging if needed
+      window._viewer = viewer;
+    });
+  </script>
+</body>
+</html>
