@@ -64,6 +64,7 @@
       <div class="form-group"><label>День/Ночь</label><input type="text" id="denbView" readonly></div>
       <div class="form-group"><label>Вид производства</label><input type="text" id="proizView" readonly></div>
       <div class="form-group"><label>Марка перерабатываемого материала</label><input type="text" id="markaView" readonly></div>
+      <div class="form-group"><label>Партия</label><input type="text" id="partyView" readonly></div>
       <div class="form-group"><label>Норма выработки</label><input type="text" id="normaView" readonly></div>
       <div class="form-group"><label>Рабочий центр</label><input type="text" id="centerView" readonly></div>
       <div class="form-group"><label>Комментарий для нач. смены</label><textarea id="commentView" readonly></textarea></div>
@@ -76,6 +77,11 @@
         <label for="vesGP">Вес ГП, кг</label>
         <input type="number" id="vesGP" step="0.01" placeholder="Введите вес готовой продукции" required>
         <div class="error-message" id="vesGPError">Поле обязательно для заполнения</div>
+      </div>
+
+      <div class="form-group">
+        <label for="smet">Смет, кг</label>
+        <input type="number" id="smet" step="0.01" placeholder="Введите вес смета">
       </div>
       
       <div class="form-group">
@@ -122,16 +128,10 @@
         document.getElementById('dateSelect').addEventListener('change', e => this.loadDataByDate(e.target.value));
         document.getElementById('employeeSelect').addEventListener('change', e => this.displayEmployeeData(e.target.value));
         
-        // validation handlers
         this.addValidationHandlers();
-
-        // no downtime checkbox handler
         document.getElementById('noDowntime').addEventListener('change', (e) => this.toggleNoDowntime(e.target.checked));
-
         this.loadDowntimeReasons();
         this.loadDataByDate(today);
-
-        // submit handler
         document.getElementById('submitBtn').addEventListener('click', () => this.handleSubmit());
       }
 
@@ -165,7 +165,6 @@
 
       validateField(fieldId) {
         const noDowntimeChecked = document.getElementById('noDowntime').checked;
-        // Если чекбокс "Нет простоя" отмечен, поля простоя не проверяем
         if (noDowntimeChecked && (fieldId === 'downtime' || fieldId === 'reasonSelect')) {
           return true;
         }
@@ -196,11 +195,9 @@
       validateAllFields() {
         const noDowntimeChecked = document.getElementById('noDowntime').checked;
         let fields = ['vesGP'];
-        
         if (!noDowntimeChecked) {
           fields = fields.concat(['downtime', 'reasonSelect']);
         }
-        
         let isValid = true;
         fields.forEach(f => { if (!this.validateField(f)) isValid = false; });
         return isValid;
@@ -227,10 +224,9 @@
           const response = await fetch(`${this.n8nWebhookUrl}?date=${encodeURIComponent(date)}`);
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
           const result = await response.json();
-          console.log('Ответ сервера:', result);
+          console.log('Ответ сервера (вебхук get-data-by-date_xtz):', result);
 
           if (result.success && Array.isArray(result.allData) && result.allData.length > 0) {
-            // присваиваем данные, гарантируем, что все элементы имеют index
             this.allData = result.allData.map((row, idx) => {
               if (row.index === undefined || row.index === null) row.index = idx;
               return row;
@@ -260,16 +256,12 @@
             return;
         }
         
-        // Создаем объект для подсчета вхождений каждого ФИО
         const fioCount = {};
         const fioEntries = {};
         
-        // Сначала извлекаем чистые ФИО
         this.employees.forEach(emp => {
             if (emp.label) {
-                // Извлекаем чистое ФИО (убираем возможные дополнения)
                 const cleanFio = emp.label.replace(/\s*\(Задание\s*\d+\)\s*$/, '').trim();
-                
                 if (cleanFio) {
                     fioCount[cleanFio] = (fioCount[cleanFio] || 0) + 1;
                     if (!fioEntries[cleanFio]) fioEntries[cleanFio] = [];
@@ -278,26 +270,20 @@
             }
         });
         
-        // Теперь создаем опции с правильными номерами заданий
         const usedFios = new Set();
         
         this.employees.forEach(emp => {
             if (emp.label) {
-                // Извлекаем чистое ФИО
                 const cleanFio = emp.label.replace(/\s*\(Задание\s*\d+\)\s*$/, '').trim();
-                
                 if (cleanFio && !usedFios.has(`${cleanFio}_${emp.index}`)) {
                     const option = document.createElement('option');
                     option.value = emp.index;
-                    
                     let label = cleanFio;
                     if (fioCount[cleanFio] > 1) {
-                        // Находим номер этого задания для данного ФИО
                         const entries = fioEntries[cleanFio];
                         const taskNumber = entries.indexOf(emp.index) + 1;
                         label += ` (Задание ${taskNumber})`;
                     }
-                    
                     option.textContent = label;
                     select.appendChild(option);
                     usedFios.add(`${cleanFio}_${emp.index}`);
@@ -321,16 +307,31 @@
 
         this.currentEmployee = emp;
 
+        // ДИАГНОСТИКА: выводим все ключи объекта
+        console.log('=== Данные выбранного сотрудника ===');
+        console.log('Ключи объекта:', Object.keys(emp));
+        console.log('Полный объект:', emp);
+
         document.getElementById('smenaView').value = emp['Смена'] || '';
         document.getElementById('denbView').value = emp['ДеньНочь'] || emp['День/Ночь'] || '';
         document.getElementById('proizView').value = emp['Вид производства'] || '';
         document.getElementById('markaView').value = emp['Марка перераб.матер.'] || emp['Марка перепаб.матер.'] || '';
+        
+        // Гибкий поиск "Партия"
+        const partyValue = emp['Партия'] || emp['партия'] || emp['Party'] || emp['party'] || '';
+        console.log('Найденное значение Партия:', partyValue);
+        document.getElementById('partyView').value = partyValue;
+        
         document.getElementById('normaView').value = emp['Норма выработки'] || '';
         document.getElementById('centerView').value = emp['Рабочий центр'] || '';
         document.getElementById('commentView').value = emp['Комментарий для нач.смены'] || '';
 
-        // подставляем пользовательские значения (если есть)
         document.getElementById('vesGP').value = emp['Вес ГП'] || emp['Вес ГП.'] || '';
+        
+        // Гибкий поиск "Смет"
+        const smetValue = emp['Смет'] || emp['смет'] || emp['Smet'] || '';
+        document.getElementById('smet').value = smetValue;
+        
         document.getElementById('downtime').value = emp['Время простоя оборудования'] || emp['Время простоя'] || '';
 
         this.setCurrentDowntimeReason(emp['Причины простоя'] || '');
@@ -339,7 +340,6 @@
         this.showEmployeeInput();
         this.clearAllValidationErrors();
         
-        // Сброс чекбокса и состояния полей при загрузке нового сотрудника
         const noDowntimeCheck = document.getElementById('noDowntime');
         noDowntimeCheck.checked = false;
         document.getElementById('downtime').disabled = false;
@@ -366,7 +366,7 @@
       showEmployeeData() { document.getElementById('employeeData').style.display = 'block'; }
       hideEmployeeData() {
         document.getElementById('employeeData').style.display = 'none';
-        ['smenaView','denbView','proizView','markaView','normaView','centerView','commentView'].forEach(id => {
+        ['smenaView','denbView','proizView','markaView','partyView','normaView','centerView','commentView'].forEach(id => {
           const el = document.getElementById(id);
           if (el) el.value = '';
         });
@@ -404,7 +404,6 @@
       populateDowntimeSelect() {
         const select = document.getElementById('reasonSelect');
         select.innerHTML = '<option value="">-- Выберите причину --</option>';
-        // Добавляем "Нет простоя" в список причин
         const option = document.createElement('option');
         option.value = 'Нет простоя';
         option.textContent = 'Нет простоя';
@@ -423,7 +422,6 @@
         if (!select) return;
         if (currentReason && (this.downtimeReasons.includes(currentReason) || currentReason === 'Нет простоя')) {
           select.value = currentReason;
-          // Если причина "Нет простоя", отмечаем чекбокс и блокируем поля
           if (currentReason === 'Нет простоя') {
             document.getElementById('noDowntime').checked = true;
             document.getElementById('downtime').disabled = true;
@@ -435,7 +433,6 @@
       }
 
       async handleSubmit() {
-        // validation
         if (!this.validateAllFields()) {
           this.showMessage('Заполните все обязательные поля', 'error');
           return;
@@ -448,6 +445,7 @@
 
         const noDowntimeChecked = document.getElementById('noDowntime').checked;
         const vesGP = document.getElementById('vesGP').value;
+        const smet = document.getElementById('smet').value;
         const downtime = noDowntimeChecked ? '0' : document.getElementById('downtime').value;
         const reason = noDowntimeChecked ? 'Нет простоя' : document.getElementById('reasonSelect').value;
         const recordId = this.currentEmployee.id || this.currentEmployee['id'] || null;
@@ -470,6 +468,7 @@
               recordId,
               date,
               vesGP: vesGP || null,
+              smet: smet || null,
               downtime: downtime || null,
               reason: reason || null
             })
@@ -484,13 +483,12 @@
           if (result && result.success === false) {
             this.showMessage('Сервер отказал в сохранении данных', 'error');
           } else {
-            // считаем успешным при HTTP 200 в большинстве случаев
             this.showMessage('Данные успешно отправлены!', 'success');
 
-            // обновим локальную запись в allData, чтобы сразу отражалось в интерфейсе
             const idx = this.allData.findIndex(r => (r.id && String(r.id) === String(recordId)) || (r.index !== undefined && r.index === this.currentEmployee.index));
             if (idx !== -1) {
               this.allData[idx]['Вес ГП'] = vesGP;
+              this.allData[idx]['Смет'] = smet;
               this.allData[idx]['Время простоя оборудования'] = downtime;
               this.allData[idx]['Причины простоя'] = reason;
             }
@@ -507,7 +505,6 @@
 
     document.addEventListener('DOMContentLoaded', () => {
       const viewer = new DataViewer();
-      // expose viewer for debugging if needed
       window._viewer = viewer;
     });
   </script>
